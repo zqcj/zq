@@ -82,7 +82,8 @@ class XinghuoScreener:
             logger.warning("今日无涨停数据")
             return []
 
-        logger.info(f"全市场涨停 {len(limit_up_df)} 只，开始逐只技术形态校验…")
+        total = len(limit_up_df)
+        logger.info(f"全市场涨停 {total} 只，开始逐只技术形态校验…")
 
         results: list[XinghuoResult] = []
         for _, row in limit_up_df.iterrows():
@@ -92,6 +93,134 @@ class XinghuoScreener:
 
         logger.info(f"星火燎原筛选完成，符合条件 {len(results)} 只")
         return results
+
+    def screen_with_stats(self, trade_date: str | None = None) -> tuple[list[XinghuoResult], dict, list[dict]]:
+        """返回 (结果, 漏斗统计, 接近标的)"""
+        if trade_date is None:
+            trade_date = self._latest_trade_date()
+
+        limit_up_df = self._fetch_limit_up_pool(trade_date)
+        stats = {
+            "涨停总数": len(limit_up_df),
+            "ST剔除": 0,
+            "换手不符": 0,
+            "无炸板回封": 0,
+            "日线缺失": 0,
+            "量能不符": 0,
+            "未站上60MA": 0,
+            "底部涨幅超30%": 0,
+            "试盘线不足": 0,
+            "缺三倍量试盘": 0,
+            "全部通过": 0,
+        }
+        near_misses: list[dict] = []
+        results: list[XinghuoResult] = []
+
+        for _, row in limit_up_df.iterrows():
+            code = normalize_code(str(row.get("代码", "")))
+            name = str(row.get("名称", ""))
+            if not code or not name:
+                continue
+            if is_st_stock(name):
+                stats["ST剔除"] += 1
+                continue
+
+            turnover = float(row.get("换手率", 0) or 0)
+            zhaban = int(row.get("炸板次数", 0) or 0)
+            close_price = float(row.get("最新价", 0) or 0)
+            sector = str(row.get("所属行业", "") or "")
+
+            if not (self.turnover_min <= turnover <= self.turnover_max):
+                stats["换手不符"] += 1
+                continue
+            if zhaban <= 0:
+                stats["无炸板回封"] += 1
+                continue
+
+            daily = self._fetch_daily(code, trade_date)
+            if daily is None or len(daily) < 70:
+                stats["日线缺失"] += 1
+                continue
+
+            daily = daily.copy()
+            daily["date"] = pd.to_datetime(daily["date"])
+            daily = daily.sort_values("date").reset_index(drop=True)
+
+            vol_ratio = self._calc_vol_ratio(daily)
+            if not (self.vol_ratio_min <= vol_ratio <= self.vol_ratio_max):
+                stats["量能不符"] += 1
+                near_misses.append(self._near_miss(code, name, "量能不符", vol_ratio, turnover, zhaban, sector))
+                continue
+
+            daily["ma60"] = daily["close"].rolling(60).mean()
+            last = daily.iloc[-1]
+            ma60 = float(last["ma60"])
+            if pd.isna(ma60) or last["close"] <= ma60:
+                stats["未站上60MA"] += 1
+                near_misses.append(self._near_miss(code, name, "未站上60MA", vol_ratio, turnover, zhaban, sector))
+                continue
+
+            rise_pct = self._calc_rise_from_bottom(daily)
+            if rise_pct > self.max_rise_from_bottom_pct:
+                stats["底部涨幅超30%"] += 1
+                near_misses.append(
+                    self._near_miss(code, name, f"底部涨幅{rise_pct:.1f}%", vol_ratio, turnover, zhaban, sector)
+                )
+                continue
+
+            trials = self._detect_trial_lines(daily)
+            cutoff = daily["date"].max() - pd.Timedelta(days=180)
+            recent_trials = [t for t in trials if t["date"] >= cutoff]
+            triple_trials = [t for t in recent_trials if t["triple"]]
+
+            if len(recent_trials) < self.min_trial_lines:
+                stats["试盘线不足"] += 1
+                near_misses.append(
+                    self._near_miss(code, name, f"试盘线仅{len(recent_trials)}次", vol_ratio, turnover, zhaban, sector)
+                )
+                continue
+            if len(triple_trials) < 1:
+                stats["缺三倍量试盘"] += 1
+                near_misses.append(
+                    self._near_miss(
+                        code, name, f"试盘线{len(recent_trials)}次但无三倍量", vol_ratio, turnover, zhaban, sector
+                    )
+                )
+                continue
+
+            stats["全部通过"] += 1
+            results.append(
+                XinghuoResult(
+                    code=code,
+                    name=name,
+                    close_price=close_price,
+                    limit_up_price=close_price,
+                    turnover_rate=turnover,
+                    zhaban_count=zhaban,
+                    vol_ratio=vol_ratio,
+                    rise_from_bottom_pct=rise_pct,
+                    trial_line_count=len(recent_trials),
+                    triple_trial_count=len(triple_trials),
+                    ma60=ma60,
+                    above_ma60=True,
+                    sector=sector,
+                    entry_price=close_price,
+                )
+            )
+
+        return results, stats, near_misses
+
+    @staticmethod
+    def _near_miss(code, name, reason, vol_ratio, turnover, zhaban, sector) -> dict:
+        return {
+            "代码": code,
+            "名称": name,
+            "淘汰原因": reason,
+            "量比": round(vol_ratio, 2),
+            "换手率%": round(turnover, 2),
+            "炸板次数": zhaban,
+            "行业": sector,
+        }
 
     def _evaluate_row(self, row: pd.Series, trade_date: str) -> XinghuoResult | None:
         code = normalize_code(str(row.get("代码", "")))

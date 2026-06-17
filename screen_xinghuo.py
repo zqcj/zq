@@ -31,14 +31,27 @@ def main():
     logger.info("=" * 60)
 
     screener = XinghuoScreener()
-    results = screener.screen(trade_date)
+    results, stats, near_misses = screener.screen_with_stats(trade_date)
 
     print(f"\n交易日: {trade_date}")
-    print(f"符合条件: {len(results)} 只\n")
+    print(f"\n【筛选漏斗】（从全市场 {stats['涨停总数']} 只涨停股中逐级过滤）")
+    for key, val in stats.items():
+        if key != "涨停总数":
+            print(f"  {key}: {val}")
+    print(f"\n符合条件: {len(results)} 只\n")
 
     if not results:
         print("今日暂无符合星火燎原形态的股票。")
         print("\n说明：策略要求今日出现拉升型涨停板，因此候选池从全市场涨停股中筛选。")
+        if near_misses:
+            print(f"\n【接近标的】（仅差最后一项或两项条件，共 {len(near_misses)} 只）")
+            print(f"{'代码':<8} {'名称':<10} {'淘汰原因':<22} {'量比':>6} {'换手率':>8} {'炸板':>4} {'行业'}")
+            print("-" * 90)
+            for nm in near_misses[:10]:
+                print(
+                    f"{nm['代码']:<8} {nm['名称']:<10} {nm['淘汰原因']:<22} "
+                    f"{nm['量比']:>6.2f} {nm['换手率%']:>7.2f}% {nm['炸板次数']:>4} {nm['行业']}"
+                )
         return
 
     print(f"{'代码':<8} {'名称':<10} {'收盘价':>8} {'换手率':>8} {'炸板':>4} {'量比':>6} {'底部涨幅':>8} {'试盘线':>6} {'60MA':>8} {'介入价':>8} {'行业'}")
