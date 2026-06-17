@@ -1,0 +1,39 @@
+# 竞价抓涨停 -- 决策先机
+strategy:
+  name: auction_limit_up_decision
+  description: 昨日涨停 + 竞价涨停报价 + 高开3-6% + 涨幅7%买点 + 热点主线
+
+# 昨日涨停筛选（规则1）
+screener:
+  allowed_boards: [1, 2]
+  exclude_st: true
+  min_float_market_cap: 10
+  max_float_market_cap: 500
+  # 拉升型涨停板：昨日换手率 8%-20%
+  turnover_min: 8.0
+  turnover_max: 20.0
+
+# 集合竞价监控（规则2）
+auction:
+  start_time: "09:15:00"
+  end_time: "09:20:00"
+  limit_up_tolerance: 0.998
+  min_auction_gain_pct: 9.0
+  min_auction_volume_ratio: 0.01
+
+# 开盘买点监控（规则3-4）
+opening:
+  open_gain_min: 3.0
+  open_gain_max: 6.0
+  buy_gain_threshold: 7.0
+  monitor_start: "09:30:00"
+  monitor_end: "10:00:00"
+  # 当日换手率也需落在 8%-20%（拉升型涨停，非缩量一字）
+  turnover_min: 8.0
+  turnover_max: 20.0
+
+# 热点主线与主力资金（规则5）
+hot_sector:
+  top_sector_count: 10
+  min_main_force_inflow: 500
+  require_hot_sector: true
