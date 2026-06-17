@@ -25,6 +25,7 @@ class LimitUpStock:
     trade_date: str
     sector: str = ""
     concepts: list[str] = field(default_factory=list)
+    turnover_rate: float = 0.0  # 昨日换手率（%）
 
 
 @dataclass
@@ -56,6 +57,7 @@ class BuySignal:
     current_price: float
     open_gain_pct: float
     current_gain_pct: float
+    turnover_rate: float  # 当日换手率（%）
     main_force_inflow: float  # 主力净流入（万元）
     hot_sectors: list[str]
     matched_sectors: list[str]

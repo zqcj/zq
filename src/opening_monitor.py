@@ -8,7 +8,7 @@ from loguru import logger
 
 from src.hot_sector import HotSectorAnalyzer
 from src.models import AuctionSignal, BuySignal, LimitUpStock
-from src.utils import board_label
+from src.utils import board_label, is_turnover_in_range
 
 
 class OpeningMonitor:
@@ -27,6 +27,8 @@ class OpeningMonitor:
         buy_gain_threshold: float = 7.0,
         monitor_start: str = "09:30:00",
         monitor_end: str = "10:00:00",
+        turnover_min: float = 8.0,
+        turnover_max: float = 20.0,
         hot_sector: HotSectorAnalyzer | None = None,
     ):
         self.open_gain_min = open_gain_min
@@ -34,6 +36,8 @@ class OpeningMonitor:
         self.buy_gain_threshold = buy_gain_threshold
         self.monitor_start = self._parse_time(monitor_start)
         self.monitor_end = self._parse_time(monitor_end)
+        self.turnover_min = turnover_min
+        self.turnover_max = turnover_max
         self.hot_sector = hot_sector or HotSectorAnalyzer()
 
     def is_in_monitor_window(self, now: datetime | None = None) -> bool:
@@ -111,6 +115,12 @@ class OpeningMonitor:
             return None
         reasons.append(f"涨幅 {current_gain_pct:.2f}% ≥ {self.buy_gain_threshold}% 触发买点")
 
+        # 换手率 8%-20%（拉升型涨停板）
+        turnover = float(row.get("换手率", row.get("turnover", 0)) or 0)
+        if not is_turnover_in_range(turnover, self.turnover_min, self.turnover_max):
+            return None
+        reasons.append(f"换手率 {turnover:.2f}%（{self.turnover_min}%-{self.turnover_max}%）")
+
         # 规则5：热点主线 + 主力资金
         stock_sectors = ([stock.sector] if stock.sector else []) + stock.concepts
         passed, matched, main_force, sector_reasons = self.hot_sector.evaluate(
@@ -133,6 +143,7 @@ class OpeningMonitor:
             current_price=current_price,
             open_gain_pct=open_gain_pct,
             current_gain_pct=current_gain_pct,
+            turnover_rate=turnover,
             main_force_inflow=main_force,
             hot_sectors=self.hot_sector.hot_sectors[:5],
             matched_sectors=matched,

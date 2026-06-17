@@ -41,6 +41,7 @@ class TestOpeningMonitor:
             "昨收": 10.0,
             "今开": 10.45,
             "最新价": 10.80,
+            "换手率": 12.5,
         }])
         stock = _make_stock()
         sig = m._evaluate(stock, spot, datetime(2025, 6, 17, 9, 35), False)
@@ -55,6 +56,7 @@ class TestOpeningMonitor:
             "昨收": 10.0,
             "今开": 10.10,
             "最新价": 10.80,
+            "换手率": 12.0,
         }])
         assert m._evaluate(_make_stock(), spot, datetime.now(), False) is None
 
@@ -65,6 +67,18 @@ class TestOpeningMonitor:
             "昨收": 10.0,
             "今开": 10.45,
             "最新价": 10.60,
+            "换手率": 12.0,
+        }])
+        assert m._evaluate(_make_stock(), spot, datetime.now(), False) is None
+
+    def test_reject_turnover_out_of_range(self):
+        m = self._monitor()
+        spot = pd.DataFrame([{
+            "代码": "000001",
+            "昨收": 10.0,
+            "今开": 10.45,
+            "最新价": 10.80,
+            "换手率": 3.0,
         }])
         assert m._evaluate(_make_stock(), spot, datetime.now(), False) is None
 

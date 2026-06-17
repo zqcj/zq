@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.utils import calc_limit_up_price, is_limit_up, is_st_stock, board_label
+from src.utils import calc_limit_up_price, is_limit_up, is_st_stock, board_label, is_turnover_in_range
 
 
 class TestLimitUpPrice:
@@ -35,3 +35,10 @@ class TestHelpers:
     def test_board_label(self):
         assert board_label(1) == "首板"
         assert board_label(2) == "二板"
+
+    def test_turnover_in_range(self):
+        assert is_turnover_in_range(12.0) is True
+        assert is_turnover_in_range(8.0) is True
+        assert is_turnover_in_range(20.0) is True
+        assert is_turnover_in_range(7.9) is False
+        assert is_turnover_in_range(20.1) is False

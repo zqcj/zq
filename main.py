@@ -31,7 +31,7 @@ def main():
             sector_info = f" | {c.sector}" if c.sector else ""
             print(
                 f"  {c.name}({c.code}) | {board_label(c.board_type.value)}"
-                f" | 收盘 {c.close_price:.2f}{sector_info}"
+                f" | 收盘 {c.close_price:.2f} | 换手 {c.turnover_rate:.2f}%{sector_info}"
             )
         return
 

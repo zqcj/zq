@@ -44,3 +44,8 @@ def normalize_code(code: str) -> str:
 
 def board_label(board_type: int) -> str:
     return {1: "首板", 2: "二板"}.get(board_type, f"{board_type}连板")
+
+
+def is_turnover_in_range(turnover: float, min_pct: float = 8.0, max_pct: float = 20.0) -> bool:
+    """换手率是否在指定区间（拉升型涨停板特征）"""
+    return min_pct <= turnover <= max_pct

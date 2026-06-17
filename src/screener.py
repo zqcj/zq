@@ -7,7 +7,7 @@ import pandas as pd
 from loguru import logger
 
 from src.models import BoardType, LimitUpStock
-from src.utils import board_label, is_st_stock, normalize_code
+from src.utils import board_label, is_st_stock, is_turnover_in_range, normalize_code
 
 
 class LimitUpScreener:
@@ -25,11 +25,15 @@ class LimitUpScreener:
         exclude_st: bool = True,
         min_float_market_cap: float = 10.0,
         max_float_market_cap: float = 500.0,
+        turnover_min: float = 8.0,
+        turnover_max: float = 20.0,
     ):
         self.allowed_boards = allowed_boards or [1, 2]
         self.exclude_st = exclude_st
         self.min_float_market_cap = min_float_market_cap
         self.max_float_market_cap = max_float_market_cap
+        self.turnover_min = turnover_min
+        self.turnover_max = turnover_max
 
     def screen(self, trade_date: str | None = None) -> list[LimitUpStock]:
         """
@@ -58,6 +62,8 @@ class LimitUpScreener:
             if self.exclude_st and is_st_stock(stock.name):
                 continue
             if not (self.min_float_market_cap <= stock.float_market_cap <= self.max_float_market_cap):
+                continue
+            if not is_turnover_in_range(stock.turnover_rate, self.turnover_min, self.turnover_max):
                 continue
             results.append(stock)
 
@@ -96,6 +102,7 @@ class LimitUpScreener:
         sector = str(row.get("所属行业", row.get("sector", "")) or "")
         concept_raw = str(row.get("所属概念", row.get("concepts", "")) or "")
         concepts = [c.strip() for c in concept_raw.split(",") if c.strip()]
+        turnover = float(row.get("换手率", row.get("turnover", 0)) or 0)
 
         return LimitUpStock(
             code=code,
@@ -109,6 +116,7 @@ class LimitUpScreener:
             trade_date=trade_date,
             sector=sector,
             concepts=concepts,
+            turnover_rate=turnover,
         )
 
     def _resolve_board_type(self, consecutive: int) -> BoardType:

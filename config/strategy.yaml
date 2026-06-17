@@ -9,6 +9,9 @@ screener:
   exclude_st: true
   min_float_market_cap: 10
   max_float_market_cap: 500
+  # 拉升型涨停板：昨日换手率 8%-20%
+  turnover_min: 8.0
+  turnover_max: 20.0
 
 # 集合竞价监控（规则2）
 auction:
@@ -20,13 +23,14 @@ auction:
 
 # 开盘买点监控（规则3-4）
 opening:
-  # 高开区间：3%-6%
   open_gain_min: 3.0
   open_gain_max: 6.0
-  # 涨幅超过此阈值触发买点
   buy_gain_threshold: 7.0
   monitor_start: "09:30:00"
   monitor_end: "10:00:00"
+  # 当日换手率也需落在 8%-20%（拉升型涨停，非缩量一字）
+  turnover_min: 8.0
+  turnover_max: 20.0
 
 # 热点主线与主力资金（规则5）
 hot_sector:

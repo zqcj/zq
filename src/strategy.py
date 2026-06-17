@@ -41,6 +41,8 @@ class AuctionLimitUpStrategy:
             exclude_st=screener_cfg.get("exclude_st", True),
             min_float_market_cap=screener_cfg.get("min_float_market_cap", 10),
             max_float_market_cap=screener_cfg.get("max_float_market_cap", 500),
+            turnover_min=screener_cfg.get("turnover_min", 8.0),
+            turnover_max=screener_cfg.get("turnover_max", 20.0),
         )
         self.monitor = AuctionMonitor(
             start_time=auction_cfg.get("start_time", "09:15:00"),
@@ -60,6 +62,8 @@ class AuctionLimitUpStrategy:
             buy_gain_threshold=opening_cfg.get("buy_gain_threshold", 7.0),
             monitor_start=opening_cfg.get("monitor_start", "09:30:00"),
             monitor_end=opening_cfg.get("monitor_end", "10:00:00"),
+            turnover_min=opening_cfg.get("turnover_min", 8.0),
+            turnover_max=opening_cfg.get("turnover_max", 20.0),
             hot_sector=self.hot_sector,
         )
 
@@ -123,7 +127,7 @@ class AuctionLimitUpStrategy:
             lines.extend([
                 f"\n[{i}] {sig.name}({sig.code}) | {board_label(sig.board_type.value)}",
                 f"    昨收: {sig.prev_close:.2f}  开盘: {sig.open_price:.2f}  现价: {sig.current_price:.2f}",
-                f"    高开: {sig.open_gain_pct:.2f}%  涨幅: {sig.current_gain_pct:.2f}%",
+                f"    高开: {sig.open_gain_pct:.2f}%  涨幅: {sig.current_gain_pct:.2f}%  换手: {sig.turnover_rate:.2f}%",
                 f"    主力净流入: {sig.main_force_inflow:.0f} 万元",
                 f"    热点主线: {', '.join(sig.matched_sectors) or '无'}",
                 f"    强度: {sig.strength:.1f}  时间: {sig.signal_time.strftime('%H:%M:%S')}",
