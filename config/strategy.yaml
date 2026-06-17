@@ -1,0 +1,27 @@
+# 竞价抓涨停 -- 决策先机
+strategy:
+  name: auction_limit_up_decision
+  description: 昨日涨停首板/二板 + 集合竞价9:20前出现涨停价报价
+
+# 昨日涨停筛选
+screener:
+  # 允许的连板数：1=首板, 2=二板
+  allowed_boards: [1, 2]
+  # 排除 ST 股票
+  exclude_st: true
+  # 最小流通市值（亿元），过滤流动性过低的标的
+  min_float_market_cap: 10
+  # 最大流通市值（亿元）
+  max_float_market_cap: 500
+
+# 集合竞价监控
+auction:
+  # 监控窗口：9:15 - 9:20（9:20后不可撤单，策略聚焦决策先机）
+  start_time: "09:15:00"
+  end_time: "09:20:00"
+  # 涨停价容差：报价 >= 涨停价 * tolerance 视为出现涨停报价
+  limit_up_tolerance: 0.998
+  # 竞价涨幅下限（相对昨收），用于辅助确认强度
+  min_auction_gain_pct: 9.0
+  # 竞价成交量占昨日成交量比例下限
+  min_auction_volume_ratio: 0.01
