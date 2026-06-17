@@ -1,35 +1,45 @@
 # 竞价抓涨停 -- 决策先机
 
-A 股集合竞价涨停捕捉策略，聚焦 **9:20 前决策先机**。
+A 股集合竞价 + 开盘买点捕捉策略。
 
 ## 策略规则
 
-| 序号 | 条件 | 说明 |
+| 序号 | 条件 | 时段 |
 |------|------|------|
-| 1 | 昨日涨停 | 首板、二板均可 |
-| 2 | 竞价涨停报价 | 集合竞价 **9:20 之前** 出现涨停价报价 |
+| 1 | 昨日涨停（首板/二板均可） | 盘前 |
+| 2 | 集合竞价 9:20 前出现涨停价报价 | 9:15–9:20 |
+| 3 | 9:30 成交高开 3%–6% | 开盘后 |
+| 4 | 股价涨幅超过 7% 即为买点 | 9:30–10:00 |
+| 5 | 符合当前热点主线，主力资金大幅关注最佳 | 辅助评分 |
 
-### 为什么聚焦 9:20 前？
+## 策略流程
 
-A 股集合竞价分两段：
+```
+盘前筛选（规则1）
+  └─ 昨日涨停池：首板 / 二板
 
-- **9:15 - 9:20**：可挂单、可撤单 → 真资金意愿，适合提前决策
-- **9:20 - 9:25**：可挂单、不可撤单 → 报价更"硬"，但决策窗口已过
+9:15–9:20（规则2）
+  └─ 竞价涨停报价监控
 
-本策略在 9:20 前捕捉涨停价报价，争取先手优势。
+9:30–10:00（规则3-5）
+  └─ 高开 3%-6% 确认
+  └─ 涨幅 ≥ 7% 触发买点
+  └─ 热点主线 + 主力资金评分排序
+```
 
 ## 项目结构
 
 ```
-├── config/strategy.yaml    # 策略参数
+├── config/strategy.yaml
 ├── src/
-│   ├── screener.py         # 昨日涨停筛选（首板/二板）
-│   ├── auction_monitor.py  # 集合竞价监控
-│   ├── strategy.py         # 策略引擎
-│   ├── models.py           # 数据模型
-│   └── utils.py            # 涨停价计算等工具
-├── main.py                 # 命令行入口
-└── requirements.txt
+│   ├── screener.py          # 规则1：昨日涨停筛选
+│   ├── auction_monitor.py   # 规则2：竞价涨停报价
+│   ├── opening_monitor.py   # 规则3-4：高开 + 买点
+│   ├── hot_sector.py        # 规则5：热点主线 + 主力资金
+│   ├── strategy.py          # 策略引擎
+│   └── utils.py
+├── main.py
+└── tests/
 ```
 
 ## 快速开始
@@ -37,45 +47,41 @@ A 股集合竞价分两段：
 ```bash
 pip install -r requirements.txt
 
-# 仅查看昨日涨停候选池
-python main.py --prepare-only
+# 查看昨日涨停候选池
+python3 main.py --prepare-only
 
-# 运行完整策略（需在交易时段）
-python main.py
+# 仅竞价扫描（规则1-2）
+python3 main.py --auction-only --mock-time 09:18:00
 
-# 指定交易日
-python main.py --date 20250616
-
-# 模拟竞价时间测试
-python main.py --mock-time 09:18:00
+# 完整策略（规则1-5）
+python3 main.py --mock-time 09:35:00
 ```
 
 ## 配置说明
 
-`config/strategy.yaml` 关键参数：
-
 ```yaml
-screener:
-  allowed_boards: [1, 2]       # 1=首板, 2=二板
-  exclude_st: true             # 排除 ST
-  min_float_market_cap: 10     # 最小流通市值（亿）
-  max_float_market_cap: 500    # 最大流通市值（亿）
+opening:
+  open_gain_min: 3.0          # 高开下限
+  open_gain_max: 6.0          # 高开上限
+  buy_gain_threshold: 7.0     # 买点涨幅阈值
+  monitor_start: "09:30:00"
+  monitor_end: "10:00:00"
 
-auction:
-  start_time: "09:15:00"
-  end_time: "09:20:00"         # 决策先机窗口
-  limit_up_tolerance: 0.998    # 涨停价容差
-  min_auction_gain_pct: 9.0    # 最低竞价涨幅
-  min_auction_volume_ratio: 0.01  # 竞价量/昨日成交量
+hot_sector:
+  top_sector_count: 10        # 热点板块数量
+  min_main_force_inflow: 500  # 主力净流入下限（万元）
+  require_hot_sector: true    # 是否必须命中热点
 ```
 
 ## 信号强度
 
 综合评分（0-100），考虑：
 
-- 板位（首板加分高于二板）
-- 竞价涨幅
-- 竞价量比
+- 板位（首板 > 二板）
+- 高开幅度（接近 4.5% 中值更佳）
+- 当前涨幅
+- 热点主线匹配数
+- 主力净流入规模
 
 ## 免责声明
 

@@ -93,6 +93,10 @@ class LimitUpScreener:
         raw_cap = float(row.get("流通市值", row.get("float_market_cap", 0)) or 0)
         float_cap = raw_cap / 1e8 if raw_cap > 1e6 else raw_cap
 
+        sector = str(row.get("所属行业", row.get("sector", "")) or "")
+        concept_raw = str(row.get("所属概念", row.get("concepts", "")) or "")
+        concepts = [c.strip() for c in concept_raw.split(",") if c.strip()]
+
         return LimitUpStock(
             code=code,
             name=name,
@@ -103,6 +107,8 @@ class LimitUpScreener:
             float_market_cap=float_cap,
             consecutive_days=consecutive,
             trade_date=trade_date,
+            sector=sector,
+            concepts=concepts,
         )
 
     def _resolve_board_type(self, consecutive: int) -> BoardType:
